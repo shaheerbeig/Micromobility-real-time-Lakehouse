@@ -46,13 +46,8 @@ def write_bronze(stream_df, table_name):
         .start(output_path)
     )
 
-print("🚀 Starting Bronze Writer — reading from Kafka and writing to Delta Lake...")
-print(f"   Telemetry  → {BRONZE_PATH}/telemetry")
-print(f"   Ride Events → {BRONZE_PATH}/ride_events")
 
-# Start both streams concurrently
 telemetry_query  = write_bronze(telemetry_stream,  "telemetry")
 ride_events_query = write_bronze(ride_events_stream, "ride_events")
 
-# Keep the application running until manually stopped (Ctrl+C)
 spark.streams.awaitAnyTermination()
