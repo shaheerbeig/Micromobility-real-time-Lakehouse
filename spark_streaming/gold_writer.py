@@ -17,7 +17,6 @@ spark = (
     .getOrCreate()
 )
 
-
 rides = spark.readStream.format("delta").load(f"{SILVER_PATH}/ride_events")
 telemetry = spark.readStream.format("delta").load(f"{SILVER_PATH}/telemetry")
 
