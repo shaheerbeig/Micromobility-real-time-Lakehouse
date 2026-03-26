@@ -18,18 +18,18 @@ def delivery_report(err, msg):
 
 def generate_ride_event():
     return {
-        "ride_id": str(uuid.uuid4()),  # Unique ID for the ride
+        "ride_id": str(uuid.uuid4()),  
         "user_id": fake.random_int(min=1, max=1000),
         "scooter_id": f"S-{fake.random_int(min=100, max=999)}",
-        "event_type": random.choice(["start", "end"]), # Ride started or finished
-        "timestamp": int(time.time() * 1000) # Current time in milliseconds
+        "event_type": random.choice(["start", "end"]), 
+        "timestamp": int(time.time() * 1000) 
     }
 
 def generate_telemetry():
     return {
         "scooter_id": f"S-{fake.random_int(min=100, max=999)}",
         "battery_level": random.randint(0, 100),
-        "latitude": float(fake.latitude()),   # Fake GPS coordinates
+        "latitude": float(fake.latitude()),   
         "longitude": float(fake.longitude()),
         "timestamp": int(time.time() * 1000)
     }
@@ -55,8 +55,6 @@ if __name__ == '__main__':
             )
             
             producer.poll(0)
-            
-            print(f"Sent Ride Event: [{ride_data['event_type']}] {ride_data['scooter_id']} | Telemetry: {telemetry_data['scooter_id']} Battery: {telemetry_data['battery_level']}%")
             time.sleep(2)
             
     except KeyboardInterrupt:
