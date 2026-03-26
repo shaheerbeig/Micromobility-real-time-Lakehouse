@@ -1,4 +1,7 @@
-import json , time , random , uuid
+import json
+import random
+import time
+import uuid
 from confluent_kafka import Producer
 from faker import Faker
 
@@ -17,21 +20,39 @@ def delivery_report(err, msg):
 
 
 def generate_ride_event():
+    event_type = random.choice(["start", "end"])
+    duration_mins = random.randint(2, 45)
+    distance_km = round(random.uniform(0.4, 12.0), 2)
+    fare_amount = round(2.5 + (distance_km * 0.75), 2)
+
     return {
-        "ride_id": str(uuid.uuid4()),  
+        "ride_id": str(uuid.uuid4()),
         "user_id": fake.random_int(min=1, max=1000),
         "scooter_id": f"S-{fake.random_int(min=100, max=999)}",
-        "event_type": random.choice(["start", "end"]), 
-        "timestamp": int(time.time() * 1000) 
+        "event_type": event_type,
+        "timestamp": int(time.time() * 1000),
+        "duration_mins": duration_mins,
+        "distance_km": distance_km,
+        "fare_amount": fare_amount,
+        "city": "new_york",
+        "payment_method": random.choice(["card", "wallet"]),
+        "ride_status": "in_progress" if event_type == "start" else "completed",
     }
+
 
 def generate_telemetry():
     return {
         "scooter_id": f"S-{fake.random_int(min=100, max=999)}",
         "battery_level": random.randint(0, 100),
-        "latitude": float(fake.latitude()),   
+        "latitude": float(fake.latitude()),
         "longitude": float(fake.longitude()),
-        "timestamp": int(time.time() * 1000)
+        "timestamp": int(time.time() * 1000),
+        "speed_kmh": round(random.uniform(0, 35), 2),
+        "odometer_km": round(random.uniform(50, 5000), 2),
+        "temperature_c": round(random.uniform(10, 38), 1),
+        "signal_strength": random.randint(1, 5),
+        "is_locked": random.choice([True, False]),
+        "scooter_status": random.choice(["available", "in_use", "charging", "maintenance"]),
     }
 
 if __name__ == '__main__':
@@ -56,7 +77,9 @@ if __name__ == '__main__':
             
             producer.poll(0)
             time.sleep(2)
-            
+            print("Ride data generated",ride_data)
+            print("Telemetry data generated",telemetry_data)
+
     except KeyboardInterrupt:
         print("\nStopping generator...")
     finally:
