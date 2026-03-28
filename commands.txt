@@ -1,0 +1,24 @@
+command to check the number of message in the topic:
+
+docker exec mmd-kafka kafka-run-class kafka.tools.GetOffsetShell
+ --broker-list localhost:9092 --topic ride_events --time -1
+
+
+command to run the silver layer:
+
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+  --conf spark.jars.ivy=/tmp/.ivy2 `
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.2.0 `
+  --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+  /opt/spark_streaming/silver_writer.py
+
+
+comamnd to run the gold layer:
+
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+  --conf spark.jars.ivy=/tmp/.ivy2 `
+  --packages io.delta:delta-spark_2.12:3.2.0 `
+  --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+  /opt/spark_streaming/gold_writer.py
