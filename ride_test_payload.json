@@ -1,0 +1,14 @@
+{
+  "ride_id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": 523,
+  "scooter_id": "S-456",
+  "event_type": "start",
+  "timestamp": 1711425045123,
+  "duration_mins": 14,
+  "distance_km": 2.7,
+  "fare_amount": 4.53,
+  "city": "new_york",
+  "payment_method": "card",
+  "ride_status": "in_progress"
+}
+

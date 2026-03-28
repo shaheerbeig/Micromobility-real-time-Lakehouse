@@ -1,0 +1,13 @@
+{
+  "scooter_id": "S-123",
+  "battery_level": 75,
+  "latitude": 40.7128,
+  "longitude": -74.0060,
+  "timestamp": 1711425045123,
+  "speed_kmh": 18.5,
+  "odometer_km": 892.4,
+  "temperature_c": 29.1,
+  "signal_strength": 4,
+  "is_locked": false,
+  "scooter_status": "in_use"
+}
