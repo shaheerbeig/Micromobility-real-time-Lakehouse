@@ -34,7 +34,7 @@ def generate_ride_event():
         "duration_mins": duration_mins,
         "distance_km": distance_km,
         "fare_amount": fare_amount,
-        "city": "new_york",
+        "city": random.choice(["newyork", "london" , "Lahore","Karachi","mumbai","dehli","texas","paris","berlin","sydney"]),
         "payment_method": random.choice(["card", "wallet"]),
         "ride_status": "in_progress" if event_type == "start" else "completed",
     }
