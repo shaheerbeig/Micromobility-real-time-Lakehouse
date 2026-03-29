@@ -36,7 +36,32 @@ command to start airflow stack:
 
 docker compose up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
 
+command to rebuild airflow (required after DAG executor setup changes):
+
+docker compose build airflow-init airflow-webserver airflow-scheduler
+
+command to restart airflow stack after rebuild:
+
+docker compose up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
+
 command to check airflow containers:
 
 docker ps --filter "name=mmd-airflow"
+
+command to start dashboard:
+
+docker compose up -d --build dashboard
+
+dashboard ui:
+
+http://localhost:8501
+
+airflow ui:
+
+http://localhost:8080
+
+airflow dags to use in hybrid mode:
+
+- pipeline_execution: runs silver -> gold -> mart -> validation
+- pipeline_freshness_monitor: runs wellness/freshness checks only
 
