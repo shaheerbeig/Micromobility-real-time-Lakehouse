@@ -61,8 +61,10 @@ services:
       - airflow_postgres_data:/var/lib/postgresql/data
 
   airflow-init:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./airflow
     container_name: mmd-airflow-init
+    user: "0:0"
     depends_on:
       airflow-postgres:
         condition: service_healthy
@@ -77,10 +79,13 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ../lakehouse:/opt/lakehouse
+      - /var/run/docker.sock:/var/run/docker.sock
 
   airflow-webserver:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./airflow
     container_name: mmd-airflow-webserver
+    user: "0:0"
     depends_on:
       airflow-postgres:
         condition: service_healthy
@@ -97,10 +102,13 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ../lakehouse:/opt/lakehouse
+      - /var/run/docker.sock:/var/run/docker.sock
 
   airflow-scheduler:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./airflow
     container_name: mmd-airflow-scheduler
+    user: "0:0"
     depends_on:
       airflow-postgres:
         condition: service_healthy
@@ -115,6 +123,18 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ../lakehouse:/opt/lakehouse
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  dashboard:
+    build:
+      context: ../dashboard
+    container_name: mmd-dashboard
+    depends_on:
+      - spark
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../lakehouse:/app/lakehouse:ro
 
 volumes:
   airflow_postgres_data:
