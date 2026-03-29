@@ -31,3 +31,12 @@ docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
   /opt/spark_streaming/mart_writer.py
+
+command to start airflow stack:
+
+docker compose up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
+
+command to check airflow containers:
+
+docker ps --filter "name=mmd-airflow"
+
