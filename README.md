@@ -184,12 +184,6 @@ Dashboard reads mart outputs from:
 
 ## Dashboard Screenshots
 
-Place screenshot files in `docs/images/` with these names:
-- `dashboard-overview.png`
-- `dashboard-kpi-detail.png`
-
-Then markdown references below will render automatically:
-
 ![Dashboard Overview](docs/images/dashboard-overview.png)
 
 ## Verification Checklist
