@@ -1,58 +1,236 @@
-# 🛴 Smart-City Micro-Mobility Data Platform
+# Smart Mobility Data Platform
 
-## 📖 Project Overview
-This project simulates the data infrastructure for an E-Scooter / Micro-Mobility startup. It captures real-time IoT telemetry from scooters and transactional data from users, processes it using a Lakehouse architecture, and models it into a dimensional Data Warehouse for business analytics.
+## Overview
+This repository implements a streaming analytics platform for scooter mobility events.
+The pipeline ingests ride and telemetry events, stores them in a Delta Lakehouse
+using a medallion design, and exposes business KPIs through a Streamlit dashboard.
 
-## 🎯 Architecture Diagram
+Current operating mode is manual execution for transformation layers:
+- Bronze is continuous (Kafka -> Delta Bronze)
+- Silver/Gold/Mart/Validation are executed on demand via commands
 
-```mermaid
-graph TD
-    subgraph Data Generation
-    A[Python OLTP & IoT Simulator]
-    end
+## Repository Structure
 
-    subgraph Streaming Ingestion
-    B(Kafka: scooter_telemetry)
-    C(Kafka: ride_events)
-    end
-
-    subgraph Lakehouse Pipeline
-    D[PySpark Streaming]
-    E[(Delta Lake: Bronze)]
-    F[(Delta Lake: Silver)]
-    end
-
-    subgraph Orchestration & DW
-    G[Airflow Batch ETL]
-    H[(PostgreSQL: Gold / Star Schema)]
-    end
-
-    A -->|Sensors GPS/Battery| B
-    A -->|User Ride Starts/Stops| C
-    B --> D
-    C --> D
-    D -->|Raw JSON| E
-    E -->|Cleaned Parquet| F
-    F -->|Scheduled read| G
-    G -->|Aggregates & Upserts| H
+```text
+.
+|-- data_generation/
+|   |-- generator.py
+|   `-- requirements.txt
+|-- infrastructure/
+|   `-- docker-compose.yml
+|-- spark_streaming/
+|   |-- bronze_writer.py
+|   |-- silver_writer.py
+|   |-- gold_writer.py
+|   |-- mart_writer.py
+|   `-- validation.py
+|-- dashboard/
+|   |-- app.py
+|   |-- Dockerfile
+|   `-- requirements.txt
+|-- lakehouse/
+|-- commands.txt
+`-- README.md
 ```
 
-## 🛠️ Tech Stack
-- **Data Generation:** Python, Faker
-- **Message Broker:** Apache Kafka (Dockerized)
-- **Data Processing:** Apache Spark (PySpark) & Delta Lake
-- **Orchestration:** Apache Airflow
-- **Data Warehouse:** PostgreSQL (Star Schema)
+## Technology Stack
+- Python 3.11+
+- Apache Kafka 7.4.0
+- Apache Spark 3.5.0
+- Delta Lake 3.2.0
+- Streamlit 1.37.x
+- Docker + Docker Compose
 
-## 📝 Sample Data Flow Example
-1. **The Event:** A user unlocks scooter `S-404` at 08:00 AM.
-2. **Kafka:** A JSON event `{"ride_id": "r-12", "scooter_id": "S-404", "status": "started"}` is sent to the `ride_events` topic.
-3. **Bronze Layer:** PySpark reads this from Kafka and appends the raw, nested JSON as a Delta table record.
-4. **Silver Layer:** Another PySpark job flattens the JSON, checks for nulls, tracks malformed records in a Dead Letter Queue (DLQ), and saves the clean data.
-5. **Gold Layer (Data Warehouse):** At midnight, Airflow triggers a daily job that calculates the total distance and cost of `r-12`, and inserts it into `fact_rides` in PostgreSQL, updating `dim_user` if necessary.
+## Data Model by Layer
 
-## 🚀 Execution Phases
-1. **Phase 1: Infrastructure & Generator** - Spin up Kafka & write Python mocks.
-2. **Phase 2: Streaming & Bronze** - PySpark reads Kafka to Delta Bronze.
-3. **Phase 3: Silver & Quality** - Deduplication, schema enforcement, DLQ.
-4. **Phase 4: Gold & Airflow** - Build Star Schema in Postgres, schedule via Airflow.
+### Bronze
+- Stores raw Kafka payload in `raw_json`
+- Adds ingestion metadata (`kafka_timestamp`)
+- Paths:
+    - `lakehouse/bronze/ride_events`
+    - `lakehouse/bronze/telemetry`
+
+### Silver
+- Parses JSON payload into typed columns
+- Applies data quality checks
+- Splits valid and invalid rows
+- Paths:
+    - Valid: `lakehouse/silver/ride_events`, `lakehouse/silver/telemetry`
+    - Invalid: `lakehouse/silver_bad_data/...`
+
+### Gold
+- Builds curated fact and dimension tables
+- Main tables:
+    - `fact_rides`
+    - `fact_telemetry`
+    - `dim_city`
+    - `dim_payment_method`
+    - `dim_time_hourly`
+
+### Mart
+- Business-facing hourly aggregates
+- Main marts:
+    - `mart_revenue_hourly`
+    - `mart_fleet_health_hourly`
+
+## Local Setup
+
+### 1. Clone repository
+
+```bash
+git clone <REPOSITORY_URL>
+cd 2_eng_project
+```
+
+### 2. Create and activate Python environment (generator)
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r data_generation\requirements.txt
+```
+
+### 3. Start core services
+
+```powershell
+cd infrastructure
+docker compose up -d
+cd ..
+```
+
+Services started:
+- `mmd-zookeeper`
+- `mmd-kafka`
+- `mmd-spark`
+- `mmd-dashboard`
+
+## End-to-End Execution (Manual)
+
+### Step 1: Start event generator
+
+```powershell
+cd data_generation
+python generator.py
+```
+
+Keep this terminal running.
+
+### Step 2: Verify Kafka ingestion
+
+```powershell
+docker exec mmd-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic ride_events --time -1
+docker exec mmd-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic scooter_telemetry --time -1
+```
+
+Offsets should increase over time.
+
+### Step 3: Run Silver
+
+```powershell
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+    --conf spark.jars.ivy=/tmp/.ivy2 `
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.2.0 `
+    --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+    --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+    /opt/spark_streaming/silver_writer.py
+```
+
+### Step 4: Run Gold
+
+```powershell
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+    --conf spark.jars.ivy=/tmp/.ivy2 `
+    --packages io.delta:delta-spark_2.12:3.2.0 `
+    --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+    --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+    /opt/spark_streaming/gold_writer.py
+```
+
+### Step 5: Run Mart
+
+```powershell
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+    --conf spark.jars.ivy=/tmp/.ivy2 `
+    --packages io.delta:delta-spark_2.12:3.2.0 `
+    --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+    --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+    /opt/spark_streaming/mart_writer.py
+```
+
+### Step 6: Run validation
+
+```powershell
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+    --conf spark.jars.ivy=/tmp/.ivy2 `
+    --packages io.delta:delta-spark_2.12:3.2.0 `
+    --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+    --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+    /opt/spark_streaming/validation.py
+```
+
+Expected result:
+- Validation summary reports passing checks
+
+## Dashboard
+
+URL:
+- `http://localhost:8501`
+
+Dashboard reads mart outputs from:
+- `/app/lakehouse/mart/mart_revenue_hourly`
+- `/app/lakehouse/mart/mart_fleet_health_hourly`
+
+## Dashboard Screenshots
+
+Place screenshot files in `docs/images/` with these names:
+- `dashboard-overview.png`
+- `dashboard-kpi-detail.png`
+
+Then markdown references below will render automatically:
+
+![Dashboard Overview](docs/images/dashboard-overview.png)
+
+## Verification Checklist
+
+1. `docker ps` shows all four services up.
+2. Generator prints events continuously.
+3. Kafka offsets increase over time.
+4. Silver command exits without failure.
+5. Gold command exits without failure.
+6. Mart command exits without failure.
+7. Validation command exits without failure.
+8. Dashboard shows non-empty KPI cards and tables.
+
+## Troubleshooting
+
+### Spark container not running
+
+```powershell
+docker start mmd-spark
+docker logs mmd-spark --tail 200
+```
+
+### Generator exits immediately
+- Confirm virtual environment is active.
+- Confirm dependencies are installed from `data_generation/requirements.txt`.
+- Confirm Kafka is up: `docker ps`.
+
+### Dashboard has no data
+- Run Silver -> Gold -> Mart manually in order.
+- Confirm files exist under `lakehouse/mart/`.
+
+## Stop and Cleanup
+
+From `infrastructure/`:
+
+```powershell
+docker compose down
+```
+
+To remove volumes as well:
+
+```powershell
+docker compose down -v
+```
