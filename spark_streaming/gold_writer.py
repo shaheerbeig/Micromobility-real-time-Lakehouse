@@ -112,6 +112,7 @@ def write_gold_stream(df, table_name):
 
     return (
         df.writeStream.format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", checkpoint_path)
         .start(output_path)
@@ -124,4 +125,11 @@ dim_payment_method_query = write_gold_stream(dim_payment_method, "dim_payment_me
 dim_city_query = write_gold_stream(dim_city, "dim_city")
 dim_time_hourly_query = write_gold_stream(dim_time_hourly, "dim_time_hourly")
 
-spark.streams.awaitAnyTermination()
+for query in [
+    fact_rides_query,
+    fact_telemetry_query,
+    dim_payment_method_query,
+    dim_city_query,
+    dim_time_hourly_query,
+]:
+    query.awaitTermination()

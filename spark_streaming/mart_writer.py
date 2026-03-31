@@ -93,6 +93,7 @@ def write_mart_stream(df, table_name):
     return (
         df.writeStream
         .format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", checkpoint_path)
         .start(output_path)
@@ -102,5 +103,9 @@ def write_mart_stream(df, table_name):
 mart_revenue_hourly_query = write_mart_stream(mart_revenue_hourly, "mart_revenue_hourly")
 mart_fleet_health_hourly_query = write_mart_stream(mart_fleet_health_hourly, "mart_fleet_health_hourly")
 
-spark.streams.awaitAnyTermination()
+for query in [
+    mart_revenue_hourly_query,
+    mart_fleet_health_hourly_query,
+]:
+    query.awaitTermination()
 

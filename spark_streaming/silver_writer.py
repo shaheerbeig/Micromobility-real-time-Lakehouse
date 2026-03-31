@@ -197,6 +197,7 @@ def write_silver_stream(df, table_name, stream_type="valid"):
     return (
         df.writeStream
         .format("delta")
+        .trigger(availableNow=True)
         .outputMode("append")
         .option("checkpointLocation", checkpoint_path)
         .start(output_path)
@@ -210,5 +211,11 @@ ride_events_query_valid = write_silver_stream(ride_events_valid, "ride_events", 
 telemetry_query_invalid = write_silver_stream(telemetry_invalid, "telemetry", "invalid")
 ride_events_query_invalid = write_silver_stream(ride_events_invalid, "ride_events", "invalid")
 
-spark.streams.awaitAnyTermination()
+for query in [
+    telemetry_query_valid,
+    ride_events_query_valid,
+    telemetry_query_invalid,
+    ride_events_query_invalid,
+]:
+    query.awaitTermination()
 
