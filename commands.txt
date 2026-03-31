@@ -1,10 +1,19 @@
-command to check the number of message in the topic:
+Manual run workflow (no Airflow)
 
-docker exec mmd-kafka kafka-run-class kafka.tools.GetOffsetShell
- --broker-list localhost:9092 --topic ride_events --time -1
+1) Start infrastructure services (Kafka, Zookeeper, Spark Bronze writer, Dashboard):
 
+docker compose up -d
 
-command to run the silver layer:
+2) Start generator in a separate terminal:
+
+cd data_generation
+python generator.py
+
+3) Check messages in Kafka topic:
+
+docker exec mmd-kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic ride_events --time -1
+
+4) Run Silver manually:
 
 docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.jars.ivy=/tmp/.ivy2 `
@@ -13,8 +22,7 @@ docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
   /opt/spark_streaming/silver_writer.py
 
-
-comamnd to run the gold layer:
+5) Run Gold manually:
 
 docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.jars.ivy=/tmp/.ivy2 `
@@ -23,7 +31,7 @@ docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
   /opt/spark_streaming/gold_writer.py
 
-command to run the mart file:
+6) Run Mart manually:
 
 docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.jars.ivy=/tmp/.ivy2 `
@@ -32,48 +40,16 @@ docker exec -it mmd-spark /opt/spark/bin/spark-submit `
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
   /opt/spark_streaming/mart_writer.py
 
-command to start airflow stack:
+7) Run validation manually:
 
-docker compose up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
+docker exec -it mmd-spark /opt/spark/bin/spark-submit `
+  --conf spark.jars.ivy=/tmp/.ivy2 `
+  --packages io.delta:delta-spark_2.12:3.2.0 `
+  --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension `
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog `
+  /opt/spark_streaming/validation.py
 
-command to rebuild airflow (required after DAG executor setup changes):
-
-docker compose build airflow-init airflow-webserver airflow-scheduler
-
-command to restart airflow stack after rebuild:
-
-docker compose up -d airflow-postgres airflow-init airflow-webserver airflow-scheduler
-
-command to check airflow containers:
-
-docker ps --filter "name=mmd-airflow"
-
-command to start dashboard:
-
-docker compose up -d --build dashboard
-
-dashboard ui:
+8) Dashboard UI:
 
 http://localhost:8501
-
-airflow ui:
-
-http://localhost:8080
-
-airflow dags to use - MANUAL TRIGGER ONLY:
-
-- pipeline_execution: runs silver -> gold -> mart -> validation
-  (DISABLED auto-schedule to prevent scheduler crashes)
-  Manually trigger via Airflow UI or:
-    airflow dags trigger --dag-id pipeline_execution --exec-date 2026-03-31
-
-- pipeline_freshness_monitor: health/freshness checks
-  (DISABLED auto-schedule) 
-  Manually trigger via Airflow UI when needed
-
-HOW TO USE:
-1. Go to http://localhost:8080
-2. Click DAG name
-3. Click the play (▶️) button top-right to trigger manually
-4. Watch execution in real-time in the UI
 
