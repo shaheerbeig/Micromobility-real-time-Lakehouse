@@ -26,20 +26,19 @@ services:
   spark:
     image: apache/spark:3.5.0
     container_name: mmd-spark
+    restart: unless-stopped
     depends_on:
       - kafka
     environment:
       HOME: /tmp
-      SPARK_SUBMIT_OPTS: "-Divy.cache.dir=/tmp/.ivy2/cache -Divy.home=/tmp/.ivy2 -Xmx2g"
-      SPARK_DRIVER_MEMORY: "2g"
-      SPARK_EXECUTOR_MEMORY: "1g"
+      SPARK_SUBMIT_OPTS: "-Divy.cache.dir=/tmp/.ivy2/cache -Divy.home=/tmp/.ivy2 -Xmx768m"
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
         mkdir -p /tmp/.ivy2/cache;
         /opt/spark/bin/spark-submit
-        --driver-memory 2g
-        --executor-memory 1g
+        --driver-memory 768m
+        --executor-memory 512m
         --conf spark.jars.ivy=/tmp/.ivy2
         --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.2.0
         --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
@@ -48,90 +47,7 @@ services:
     volumes:
       - ../spark_streaming:/opt/spark_streaming
       - ../lakehouse:/opt/lakehouse
-    mem_limit: "4g"
-
-  airflow-postgres:
-    image: postgres:15
-    container_name: mmd-airflow-postgres
-    environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - airflow_postgres_data:/var/lib/postgresql/data
-
-  airflow-init:
-    build:
-      context: ./airflow
-    container_name: mmd-airflow-init
-    user: "0:0"
-    depends_on:
-      airflow-postgres:
-        condition: service_healthy
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-    command: >
-      bash -c "airflow db migrate &&
-      airflow users create --username admin --password admin --firstname admin --lastname user --role Admin --email admin@example.com || true"
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ../lakehouse:/opt/lakehouse
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  airflow-webserver:
-    build:
-      context: ./airflow
-    container_name: mmd-airflow-webserver
-    user: "0:0"
-    depends_on:
-      airflow-postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-    command: webserver
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ../lakehouse:/opt/lakehouse
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  airflow-scheduler:
-    build:
-      context: ./airflow
-    container_name: mmd-airflow-scheduler
-    user: "0:0"
-    depends_on:
-      airflow-postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__CORE__TASK_EXECUTION_TIMEOUT: 3600
-      AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT: 60
-    command: scheduler
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ../lakehouse:/opt/lakehouse
-      - /var/run/docker.sock:/var/run/docker.sock
-    mem_limit: "2g"
+    mem_limit: "1500m"
 
   dashboard:
     build:
@@ -143,6 +59,3 @@ services:
       - "8501:8501"
     volumes:
       - ../lakehouse:/app/lakehouse:ro
-
-volumes:
-  airflow_postgres_data:
