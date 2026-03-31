@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+
+try:
+    # Airflow 3 location
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    # Airflow 2 location
+    from airflow.operators.bash import BashOperator
 
 DEFAULT_ARGS = {
     "owner": "data-platform",
@@ -28,7 +34,7 @@ with DAG(
     description="Execute silver, gold, mart, then validation in sequence.",
     default_args=DEFAULT_ARGS,
     start_date=datetime(2026, 1, 1),
-    schedule_interval="*/15 * * * *",
+    schedule=None,
     catchup=False,
     max_active_runs=1,
     tags=["pipeline", "execution"],

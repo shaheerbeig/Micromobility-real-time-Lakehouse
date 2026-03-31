@@ -149,7 +149,7 @@ def summarize_pipeline_health() -> None:
 with DAG(
     dag_id="pipeline_freshness_monitor",
     start_date=datetime(2026, 3, 29),
-    schedule="*/10 * * * *",
+    schedule=None,
     catchup=False,
     tags=["orchestration", "monitoring", "lakehouse"],
     default_args={

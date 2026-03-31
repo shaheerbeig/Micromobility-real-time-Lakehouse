@@ -30,12 +30,16 @@ services:
       - kafka
     environment:
       HOME: /tmp
-      SPARK_SUBMIT_OPTS: "-Divy.cache.dir=/tmp/.ivy2/cache -Divy.home=/tmp/.ivy2"
+      SPARK_SUBMIT_OPTS: "-Divy.cache.dir=/tmp/.ivy2/cache -Divy.home=/tmp/.ivy2 -Xmx2g"
+      SPARK_DRIVER_MEMORY: "2g"
+      SPARK_EXECUTOR_MEMORY: "1g"
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
         mkdir -p /tmp/.ivy2/cache;
         /opt/spark/bin/spark-submit
+        --driver-memory 2g
+        --executor-memory 1g
         --conf spark.jars.ivy=/tmp/.ivy2
         --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.2.0
         --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
@@ -44,6 +48,7 @@ services:
     volumes:
       - ../spark_streaming:/opt/spark_streaming
       - ../lakehouse:/opt/lakehouse
+    mem_limit: "4g"
 
   airflow-postgres:
     image: postgres:15
@@ -118,12 +123,15 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__TASK_EXECUTION_TIMEOUT: 3600
+      AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT: 60
     command: scheduler
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ../lakehouse:/opt/lakehouse
       - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: "2g"
 
   dashboard:
     build:

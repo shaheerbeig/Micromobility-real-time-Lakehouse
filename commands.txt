@@ -60,8 +60,20 @@ airflow ui:
 
 http://localhost:8080
 
-airflow dags to use in hybrid mode:
+airflow dags to use - MANUAL TRIGGER ONLY:
 
 - pipeline_execution: runs silver -> gold -> mart -> validation
-- pipeline_freshness_monitor: runs wellness/freshness checks only
+  (DISABLED auto-schedule to prevent scheduler crashes)
+  Manually trigger via Airflow UI or:
+    airflow dags trigger --dag-id pipeline_execution --exec-date 2026-03-31
+
+- pipeline_freshness_monitor: health/freshness checks
+  (DISABLED auto-schedule) 
+  Manually trigger via Airflow UI when needed
+
+HOW TO USE:
+1. Go to http://localhost:8080
+2. Click DAG name
+3. Click the play (▶️) button top-right to trigger manually
+4. Watch execution in real-time in the UI
 
